@@ -1,0 +1,5 @@
+---
+- name: restart scraper service
+  systemd:
+    name: yimple-scraper
+    state: restarted

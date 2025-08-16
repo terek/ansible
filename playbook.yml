@@ -1,0 +1,9 @@
+- hosts: web
+  become: true
+  vars_files:
+    - vault.yml
+  roles:
+    # - firewall
+    - nodejs
+    - cloudflared
+    - scraper

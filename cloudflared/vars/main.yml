@@ -1,0 +1,26 @@
+# Cloudflared Tunnel Variables
+#
+# IMPORTANT: You need to set these variables before running the playbook:
+# 1. tunnel_name: A friendly name for your tunnel
+# 2. tunnel_uuid: The UUID generated when you create the tunnel
+# 3. domain_name: Your domain name
+# 4. services: List of services to expose
+#
+# Path clarification:
+# - local_credentials_path: Path on YOUR DEV MACHINE (where you run ansible)
+# - All /etc/cloudflared paths: Paths on the TARGET VM (where cloudflared runs)
+
+# Example configuration - REPLACE WITH YOUR VALUES:
+tunnel_name: "yimple-tunnel"
+tunnel_uuid: "9cd59442-860b-4efe-ab10-82a185a432c8" # Get this from 'cloudflared tunnel create'
+
+# Optional: Custom path to credentials on your dev machine
+# Default: ~/.cloudflared/{{ tunnel_uuid }}.json
+# local_credentials_path: "/path/to/your/credentials.json"
+
+# Services to expose through the tunnel
+services:
+  # Scraper service
+  - hostname: "scraper.yimple.com"
+    service: "http://localhost:3000" # Scraper service
+    description: "Web scraper service"

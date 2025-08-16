@@ -1,0 +1,37 @@
+- name: Enable UFW and default deny
+  ufw:
+    state: enabled
+    policy: deny
+    direction: incoming
+
+- name: Allow outgoing traffic
+  ufw:
+    direction: outgoing
+    policy: allow
+
+- name: Allow SSH from your IP
+  ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+    from_ip: YOUR.IP.HERE
+
+- name: Fetch Cloudflare IPs (v4)
+  uri:
+    url: https://www.cloudflare.com/ips-v4
+    return_content: yes
+  register: cf_ipv4
+
+- name: Add UFW rules for Cloudflare IPv4
+  ufw:
+    rule: allow
+    proto: tcp
+    port: "{{ item }}"
+    from_ip: "{{ ip }}"
+  loop: "{{ cf_ipv4.content.splitlines() }}"
+  loop_control:
+    loop_var: ip
+  with_items:
+    - 80
+    - 443
+# Repeat similarly for IPv6 if needed (with ipv6: true)

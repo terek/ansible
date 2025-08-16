@@ -1,0 +1,97 @@
+- name: Include cloudflared variables
+  include_vars: vars/main.yml
+
+- name: Download cloudflared
+  get_url:
+    url: https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+    dest: /usr/local/bin/cloudflared
+    mode: "0755"
+
+- name: Create cloudflared user
+  user:
+    name: cloudflared
+    shell: /usr/sbin/nologin
+    system: yes
+
+- name: Create cloudflared config dir
+  file:
+    path: /etc/cloudflared
+    state: directory
+    owner: cloudflared
+    mode: "0755"
+
+- name: Check if tunnel credentials exist on target VM
+  stat:
+    path: /etc/cloudflared/{{ tunnel_uuid }}.json
+  register: tunnel_credentials
+
+- name: Check if credentials exist locally on dev machine
+  local_action:
+    module: stat
+    path: "{{ local_credentials_path | default('~/.cloudflared/' + tunnel_uuid + '.json') }}"
+  register: local_credentials
+  become: false
+
+- name: Copy tunnel credentials from dev machine to target VM
+  copy:
+    src: "{{ local_credentials_path | default('~/.cloudflared/' + tunnel_uuid + '.json') }}"
+    dest: /etc/cloudflared/{{ tunnel_uuid }}.json
+    owner: cloudflared
+    group: cloudflared
+    mode: "0600"
+  when: local_credentials.stat.exists and not tunnel_credentials.stat.exists
+
+- name: Fail if tunnel credentials are missing everywhere
+  fail:
+    msg: |
+      Tunnel credentials not found on either dev machine or target VM!
+
+      ON YOUR DEV MACHINE, run:
+      1. cloudflared tunnel login
+      2. cloudflared tunnel create {{ tunnel_name }}
+      3. Note the UUID from the output
+      4. Update tunnel_uuid in vars/main.yml
+      5. Re-run this playbook
+
+      Expected credential locations:
+      - Dev machine: ~/.cloudflared/{{ tunnel_uuid }}.json
+      - Target VM: /etc/cloudflared/{{ tunnel_uuid }}.json
+
+      Current status:
+      - Dev machine credential exists: {{ local_credentials.stat.exists }}
+      - Target VM credential exists: {{ tunnel_credentials.stat.exists }}
+  when: not local_credentials.stat.exists and not tunnel_credentials.stat.exists
+
+- name: Upload tunnel config
+  template:
+    src: config.yml.j2
+    dest: /etc/cloudflared/config.yml
+    owner: cloudflared
+    mode: "0644"
+  notify: restart cloudflared
+
+- name: Setup cloudflared systemd service
+  copy:
+    content: |
+      [Unit]
+      Description=cloudflared tunnel
+      After=network.target
+
+      [Service]
+      Type=simple
+      User=cloudflared
+      ExecStart=/usr/local/bin/cloudflared --config /etc/cloudflared/config.yml tunnel run
+      Restart=always
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+    dest: /etc/systemd/system/cloudflared.service
+    mode: "0644"
+
+- name: Reload and enable cloudflared
+  systemd:
+    daemon_reload: yes
+    name: cloudflared
+    enabled: yes
+    state: started

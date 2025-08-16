@@ -1,0 +1,92 @@
+- name: Create scraper user
+  user:
+    name: scraper
+    shell: /usr/sbin/nologin
+    system: yes
+    home: /opt/scraper
+
+- name: Create scraper directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: scraper
+    group: scraper
+    mode: "0755"
+  loop:
+    - /opt/scraper
+    - /var/log/scraper
+
+- name: Copy scraper bundled application
+  copy:
+    src: "../../../scraper/dist/index.js"
+    dest: "/opt/scraper/index.js"
+    owner: scraper
+    group: scraper
+    mode: "0644"
+  notify: restart scraper service
+
+- name: Create scraper environment file
+  template:
+    src: "scraper.env.j2"
+    dest: "/opt/scraper/.env"
+    owner: scraper
+    group: scraper
+    mode: "0600"
+  notify: restart scraper service
+
+- name: Create scraper systemd service
+  copy:
+    content: |
+      [Unit]
+      Description=Yimple Scraper Service
+      After=network.target
+      Wants=network.target
+
+      [Service]
+      Type=simple
+      User=scraper
+      Group=scraper
+      WorkingDirectory=/opt/scraper
+      ExecStart=/usr/bin/node /opt/scraper/index.js
+      Restart=always
+      RestartSec=10
+      StandardOutput=journal
+      StandardError=journal
+      SyslogIdentifier=yimple-scraper
+
+      # Environment variables
+      Environment=NODE_ENV=production
+      EnvironmentFile=/opt/scraper/.env
+
+      # Security settings
+      NoNewPrivileges=yes
+      PrivateTmp=yes
+      PrivateDevices=yes
+      ProtectHome=yes
+      ProtectSystem=strict
+      ReadWritePaths=/var/log/scraper
+
+      [Install]
+      WantedBy=multi-user.target
+    dest: /etc/systemd/system/yimple-scraper.service
+    mode: "0644"
+  notify: restart scraper service
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: yes
+
+- name: Enable and start scraper service
+  systemd:
+    name: yimple-scraper
+    enabled: yes
+    state: started
+
+- name: Check scraper service status
+  systemd:
+    name: yimple-scraper
+  register: scraper_status
+
+- name: Display scraper service status
+  debug:
+    msg: "Scraper service is {{ scraper_status.status.ActiveState }}"
