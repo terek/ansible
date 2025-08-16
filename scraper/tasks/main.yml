@@ -18,7 +18,7 @@
 
 - name: Copy scraper bundled application
   copy:
-    src: "../../../scraper/dist/index.js"
+    src: "../../yimple/scraper/dist/index.js"
     dest: "/opt/scraper/index.js"
     owner: scraper
     group: scraper
