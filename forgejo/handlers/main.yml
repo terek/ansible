@@ -1,0 +1,8 @@
+- name: recreate forgejo stack
+  listen: recreate forgejo stack
+  command: "docker compose -f /opt/forgejo/docker-compose.yml up -d"
+  args:
+    chdir: "/opt/forgejo"
+  tags: ["forgejo", "forgejo:up"]
+
+

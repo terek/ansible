@@ -1,0 +1,59 @@
+- name: Optionally install Docker engine and compose plugin
+  apt:
+    name:
+      - docker.io
+      - docker-compose-plugin
+    state: present
+    update_cache: yes
+  when: forgejo_manage_docker | default(false)
+  tags: ["forgejo", "forgejo:docker"]
+
+- name: Create forgejo directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "/opt/forgejo"
+    - "/opt/forgejo/data"
+    - "/opt/forgejo/db"
+  tags: ["forgejo", "forgejo:dirs"]
+
+- name: Deploy docker-compose.yml for Forgejo
+  copy:
+    src: docker-compose.yml
+    dest: "/opt/forgejo/docker-compose.yml"
+    mode: "0644"
+  notify: recreate forgejo stack
+  tags: ["forgejo", "forgejo:compose"]
+
+- name: Deploy Nginx config to restrict UI
+  copy:
+    src: nginx.conf
+    dest: "/opt/forgejo/nginx.conf"
+    mode: "0644"
+  notify: recreate forgejo stack
+  tags: ["forgejo", "forgejo:nginx"]
+
+- name: Bring up Forgejo stack
+  command: "docker compose -f /opt/forgejo/docker-compose.yml up -d"
+  args:
+    chdir: "/opt/forgejo"
+  register: forgejo_up
+  changed_when: forgejo_up.rc == 0
+  tags: ["forgejo", "forgejo:up"]
+
+- name: Show Forgejo stack status
+  command: "docker compose -f /opt/forgejo/docker-compose.yml ps"
+  args:
+    chdir: "/opt/forgejo"
+  register: forgejo_ps
+  changed_when: false
+  tags: ["forgejo", "forgejo:status"]
+
+- name: Display compose services
+  debug:
+    var: forgejo_ps.stdout
+  tags: ["forgejo", "forgejo:status"]
+
+
