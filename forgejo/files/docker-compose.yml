@@ -33,16 +33,25 @@ services:
       - FORGEJO__database__PASSWD=forgejo
       - FORGEJO__server__DOMAIN=git.merlin.dev
       - FORGEJO__server__ROOT_URL=https://git.merlin.dev/
-      - FORGEJO__server__SSH_DOMAIN=git.merlin.dev
+      - FORGEJO__server__SSH_DOMAIN=git-ssh.merlin.dev
       - FORGEJO__server__SSH_PORT=2222
       - FORGEJO__server__SSH_LISTEN_PORT=2222
-      - FORGEJO__server__START_SSH_SERVER=true
+      - FORGEJO__server__START_SSH_SERVER=false # nginx quota is not possible
       - FORGEJO__service__DISABLE_REGISTRATION=true
       - FORGEJO__security__INSTALL_LOCK=true
+      - FORGEJO__repository__DISABLED_REPO_UNITS=repo.issues, repo.ext_issues, repo.pulls, repo.wiki, repo.ext_wiki, repo.projects, repo.packages, repo.actions
+      - FORGEJO__repository_0x2E_upload__ENABLED=false
+      - FORGEJO__quota__ENABLED=true
+      - FORGEJO__quota__TOTAL=8G
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/api/healthz || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 10
     ports:
       - '2222:22'
     volumes:
-      - /data/forgejo:/var/lib/gitea
+      - /data/forgejo:/data
     restart: unless-stopped
 
   nginx:
@@ -55,6 +64,25 @@ services:
     ports:
       - '3001:80'
     restart: unless-stopped
+
+  forgejo-init:
+    image: codeberg.org/forgejo/forgejo:12.0.1
+    container_name: forgejo-init
+    depends_on:
+      forgejo:
+        condition: service_healthy
+    profiles:
+      - init
+    user: '1000:1000'
+    environment:
+      - ADMIN_USERNAME=root
+      - ADMIN_PASSWORD=${FORGEJO_ADMIN_PASSWORD}
+      - ADMIN_EMAIL=root@merlin.dev
+    volumes:
+      - /data/forgejo:/data
+    entrypoint: ['/bin/sh', '-c']
+    command: /usr/local/bin/forgejo admin user create --admin --username "${ADMIN_USERNAME}" --password "${ADMIN_PASSWORD}" --email "${ADMIN_EMAIL}" --must-change-password=false --config /data/gitea/conf/app.ini
+    restart: 'no'
 
 volumes: {}
 

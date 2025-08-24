@@ -15,8 +15,8 @@
     mode: "0755"
   loop:
     - "/opt/forgejo"
-    - "/opt/forgejo/data"
-    - "/opt/forgejo/db"
+    - "/data/forgejo"
+    - "/data/db"
   tags: ["forgejo", "forgejo:dirs"]
 
 - name: Deploy docker-compose.yml for Forgejo
