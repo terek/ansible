@@ -18,9 +18,16 @@ tunnel_uuid: "9cd59442-860b-4efe-ab10-82a185a432c8" # Get this from 'cloudflared
 # Default: ~/.cloudflared/{{ tunnel_uuid }}.json
 # local_credentials_path: "/path/to/your/credentials.json"
 
+
 # Services to expose through the tunnel
 services:
-  # Scraper service
-  - hostname: "scraper.yimple.com"
-    service: "http://localhost:3000" # Scraper service
-    description: "Web scraper service"
+  # Forgejo via Nginx (HTTPS -> localhost:3001)
+  - hostname: "git.merlin.dev"
+    service: "http://localhost:3001"
+    description: "Forgejo API + Git over HTTPS (Nginx)"
+
+  # Forgejo SSH (Cloudflare Access required for native SSH)
+  # Connect with: ssh -o ProxyCommand="cloudflared access ssh --hostname %h" git@ssh.git.merlin.dev
+  - hostname: "ssh.git.merlin.dev"
+    service: "ssh://localhost:2222"
+    description: "Forgejo Git over SSH via Cloudflare Access"

@@ -1,8 +1,6 @@
-version: '3.8'
-
 services:
   db:
-    image: mariadb:10.11
+    image: mariadb:lts-ubi9
     container_name: forgejo-db
     environment:
       - MYSQL_ROOT_PASSWORD=forgejoroot
@@ -12,14 +10,14 @@ services:
     volumes:
       - /data/db:/var/lib/mysql
     healthcheck:
-      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      test: ['CMD', 'bash', '-c', 'exec 3<>/dev/tcp/localhost/3306']
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
   forgejo:
-    image: codeberg.org/forgejo/forgejo:8
+    image: codeberg.org/forgejo/forgejo:12.0.1
     container_name: forgejo
     depends_on:
       db:
@@ -28,16 +26,19 @@ services:
       - USER_UID=1000
       - USER_GID=1000
       - TZ=UTC
-      - GITEA__database__DB_TYPE=mysql
-      - GITEA__database__HOST=db:3306
-      - GITEA__database__NAME=forgejo
-      - GITEA__database__USER=forgejo
-      - GITEA__database__PASSWD=forgejo
-      - GITEA__server__DOMAIN=git.merlin.dev
-      - GITEA__server__ROOT_URL=http://git.merlin.dev/
-      - GITEA__server__SSH_DOMAIN=git.merlin.dev
-      - GITEA__server__SSH_PORT=2222
-      - GITEA__server__START_SSH_SERVER=true
+      - FORGEJO__database__DB_TYPE=mysql
+      - FORGEJO__database__HOST=db:3306
+      - FORGEJO__database__NAME=forgejo
+      - FORGEJO__database__USER=forgejo
+      - FORGEJO__database__PASSWD=forgejo
+      - FORGEJO__server__DOMAIN=git.merlin.dev
+      - FORGEJO__server__ROOT_URL=https://git.merlin.dev/
+      - FORGEJO__server__SSH_DOMAIN=git.merlin.dev
+      - FORGEJO__server__SSH_PORT=2222
+      - FORGEJO__server__SSH_LISTEN_PORT=2222
+      - FORGEJO__server__START_SSH_SERVER=true
+      - FORGEJO__service__DISABLE_REGISTRATION=true
+      - FORGEJO__security__INSTALL_LOCK=true
     ports:
       - '2222:22'
     volumes:

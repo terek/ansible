@@ -4,7 +4,8 @@
     - vault.yml
   roles:
     # - firewall
-    - nodejs
-    - cloudflared
-    - scraper
+    - { role: docker, tags: ["bootstrap"] }
+    - { role: nodejs, tags: ["bootstrap"] }
+    - { role: cloudflared, tags: ["config"] }
+    - { role: scraper, tags: ["config"] }
     - { role: forgejo, tags: ["forgejo"] }
