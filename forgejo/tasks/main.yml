@@ -19,6 +19,17 @@
     - "/data/db"
   tags: ["forgejo", "forgejo:dirs"]
 
+- name: Check ownership of /data/db
+  stat:
+    path: "/data/db"
+  register: forgejo_db_dir
+  tags: ["forgejo", "forgejo:dirs"]
+
+- name: Chown /data/db to 999:999 for MariaDB
+  command: "chown -R 999:999 /data/db"
+  when: forgejo_db_dir.stat.exists and (forgejo_db_dir.stat.uid != 999 or forgejo_db_dir.stat.gid != 999)
+  tags: ["forgejo", "forgejo:dirs"]
+
 - name: Deploy docker-compose.yml for Forgejo
   copy:
     src: docker-compose.yml
@@ -56,4 +67,39 @@
     var: forgejo_ps.stdout
   tags: ["forgejo", "forgejo:status"]
 
+- name: Ensure forgejo_root_password is provided
+  assert:
+    that:
+      - forgejo_root_password is defined
+      - forgejo_root_password | length > 0
+    fail_msg: "Set 'forgejo_root_password' in vault.yml or vars before running."
+  tags: ["forgejo", "forgejo:init"]
+
+- name: Wait for Forgejo container to become healthy
+  shell: "docker inspect -f '{{ '{{' }} .State.Health.Status {{ '}}' }}' forgejo"
+  register: forgejo_health
+  changed_when: false
+  retries: 30
+  delay: 5
+  until: forgejo_health.stdout == "healthy"
+  tags: ["forgejo", "forgejo:init"]
+
+- name: Ensure Forgejo root admin user exists
+  shell: >
+    docker compose -f /opt/forgejo/docker-compose.yml exec --user 1000 -T forgejo
+    /usr/local/bin/forgejo admin user create
+    --admin
+    --username root
+    --password {{ forgejo_root_password | quote }}
+    --email 'root@merlin.dev'
+    --must-change-password=false
+  args:
+    chdir: "/opt/forgejo"
+  register: forgejo_create_root
+  changed_when: forgejo_create_root.rc == 0
+  failed_when: >-
+    forgejo_create_root.rc != 0 and
+    ('already exists' not in (forgejo_create_root.stderr | default('') | lower)) and
+    ('already exists' not in (forgejo_create_root.stdout | default('') | lower))
+  tags: ["forgejo", "forgejo:init"]
 

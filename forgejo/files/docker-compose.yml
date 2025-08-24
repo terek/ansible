@@ -1,3 +1,5 @@
+# TODO: create a named volume for the db
+
 services:
   db:
     image: mariadb:lts-ubi9
@@ -64,25 +66,6 @@ services:
     ports:
       - '3001:80'
     restart: unless-stopped
-
-  forgejo-init:
-    image: codeberg.org/forgejo/forgejo:12.0.1
-    container_name: forgejo-init
-    depends_on:
-      forgejo:
-        condition: service_healthy
-    profiles:
-      - init
-    user: '1000:1000'
-    environment:
-      - ADMIN_USERNAME=root
-      - ADMIN_PASSWORD=${FORGEJO_ADMIN_PASSWORD}
-      - ADMIN_EMAIL=root@merlin.dev
-    volumes:
-      - /data/forgejo:/data
-    entrypoint: ['/bin/sh', '-c']
-    command: /usr/local/bin/forgejo admin user create --admin --username "${ADMIN_USERNAME}" --password "${ADMIN_PASSWORD}" --email "${ADMIN_EMAIL}" --must-change-password=false --config /data/gitea/conf/app.ini
-    restart: 'no'
 
 volumes: {}
 
